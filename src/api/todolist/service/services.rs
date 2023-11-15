@@ -1,10 +1,20 @@
 use crate::api::todolist::model::models::{CreateEntryData, UpdateEntryData};
+use crate::utils::response::{create_response_data, create_response_message, HttpStatus};
 use crate::{AppState, TodoListEntry};
-use actix_web::{delete, get, post, put, web, HttpResponse, Responder};
+use actix_web::{delete, get, post, put, web, Responder};
 
 #[get("/todolist/entries")]
 async fn get_entries(data: web::Data<AppState>) -> impl Responder {
-    HttpResponse::Ok().json(data.todolist_entries.lock().unwrap().to_vec())
+    let data: Vec<TodoListEntry> = data.todolist_entries.lock().unwrap().to_vec();
+    let total: u32 = data.len() as u32;
+
+    create_response_data::<Vec<_>>(
+        data,
+        total,
+        "Sucesso ao obter os items".to_string(),
+        HttpStatus::Ok as u16,
+    )
+    .await
 }
 
 #[post("/todolist/entries")]
@@ -27,7 +37,11 @@ async fn create_entry(
         date: param_obj.date,
     });
 
-    HttpResponse::Created().json(todolist_entries.to_vec())
+    create_response_message(
+        "Tarefa criada com sucesso!".to_string(),
+        HttpStatus::Created as u16,
+    )
+    .await
 }
 
 #[put("/todolist/entries/{id}")]
@@ -36,7 +50,7 @@ async fn update_entry(
     path: web::Path<i32>,
     param_obj: web::Json<UpdateEntryData>,
 ) -> impl Responder {
-    let id = path.into_inner();
+    let id: i32 = path.into_inner();
     let mut todolist_entries = data.todolist_entries.lock().unwrap();
 
     for i in 0..todolist_entries.len() {
@@ -46,7 +60,11 @@ async fn update_entry(
         }
     }
 
-    HttpResponse::Ok().json(todolist_entries.to_vec())
+    create_response_message(
+        format!("Tarefa {} atualizada com sucesso!", id).to_string(),
+        HttpStatus::Ok as u16,
+    )
+    .await
 }
 
 #[delete("/todolist/entries/{id}")]
@@ -60,7 +78,11 @@ async fn delete_entry(data: web::Data<AppState>, path: web::Path<i32>) -> impl R
         .filter(|x| x.id != id)
         .collect();
 
-    HttpResponse::Ok().json(todolist_entries.to_vec())
+    create_response_message(
+        format!("Tarefa {} deletada com sucesso!", id),
+        HttpStatus::Ok as u16,
+    )
+    .await
 }
 
 pub fn config(cfg: &mut web::ServiceConfig) {
